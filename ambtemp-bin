@@ -1,0 +1,48 @@
+#!/usr/bin/python3
+
+import board
+import busio
+import time
+import adafruit_character_lcd.character_lcd_i2c as character_lcd
+from adafruit_bme280 import basic as adafruit_bme280
+from signal import signal, SIGTERM
+
+# define bme280
+i2c_bme = board.I2C() # for bme280
+try:
+    bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c_bme)
+except ValueError:
+    exit(2)
+
+# define character lcd
+i2c_lcd = busio.I2C(board.SCL, board.SDA) # for char lcd
+cols = 16
+rows = 2
+try:
+    lcd = character_lcd.Character_LCD_I2C(i2c_lcd, cols, rows)
+except ValueError:
+    exit(2)
+
+def prog_quit():
+    time.sleep(0.2) # allow char lcd library to finish things up if in the middle of writing when quitting
+    lcd.clear()
+    lcd.cursor = False
+    time.sleep(0.3) # allow library to finish clearing screen and toggling off cursor
+    exit(1)
+
+def sigterm_quit(signum, frame):
+    prog_quit()
+
+try:
+    signal(SIGTERM, sigterm_quit)
+
+    lcd.message = "Temperature:"
+    lcd.cursor = True
+
+    while True:
+        lcd.cursor_position(0, 1)
+        msg = "\n%0.1fßC" % bme280.temperature # character lcd uses the english/japanese character set, use german eszett, which corresponds to a character similar to degree symbol in binary, see hd44780 datasheet.
+        lcd.message = msg
+        time.sleep(1)
+except KeyboardInterrupt:
+    prog_quit()
